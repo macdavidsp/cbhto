@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fórum Tocantinense de Comitês de Bacia - Sistema de Reuniões</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/jspdf-autotable@3.5.21/dist/jspdf.plugin.autotable.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        'brand-primary': '#176781',
+                        'brand-success': '#50c2ab',
+                        'brand-accent': '#eac066',
+                        'brand-light': '#7fb2c7',
+                        'brand-dark': '#67686a'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f3f4f6; }
+        .view-section { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .comite-banner { transition: all 0.3s ease; }
+        .comite-banner:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        
+        #comite-destaque-logo-header { max-height: 320px; width: auto; border-radius: 8px; }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+
+    <div id="status-message" class="opacity-0 pointer-events-none fixed top-4 right-4 p-4 rounded-xl shadow-2xl font-medium transition-all duration-300 z-50"></div>
+
+    <div id="confirmation-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex justify-center items-center transition-opacity">
+        <div id="modal-content" class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl transform scale-95 opacity-0 transition-all duration-300">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">Confirmação</h3>
+            <p id="modal-text" class="text-gray-600 mb-6"></p>
+            <div class="flex justify-end space-x-3">
+                <button id="modal-cancel" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors">Cancelar</button>
+                <button id="modal-confirm" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <header id="main-header" class="bg-brand-primary text-white shadow-md transition-colors relative">
+        <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex flex-col justify-center items-center text-center relative min-h-[100px]">
+            <div class="z-10">
+                <h1 id="header-title" class="text-2xl md:text-3xl font-bold tracking-tight">Fórum Tocantinense de Comitês de Bacia</h1>
+                <p id="header-subtitle" class="text-brand-light text-sm md:text-base mt-1">Sistema de Gestão de Reuniões On-line</p>
+            </div>
+            
+            <div class="absolute right-4 sm:right-6 lg:right-8 top-1/2 transform -translate-y-1/2 hidden sm:block z-20">
+                <button id="btn-voltar-home" class="hidden bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors backdrop-blur-sm shadow-sm">
+                    Trocar Comitê
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 py-8 w-full">
+        
+        <div id="landing-view" class="view-section">
+            <div class="text-center mb-12">
+                <h2 class="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">Gestão de Reuniões On-line</h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">Selecione abaixo o seu Comitê de Bacia Hidrográfica para acessar o painel de presenças e quórum.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="comites-grid">
+                </div>
+        </div>
+
+        <div id="sistema-interno" class="hidden">
+            
+            <div id="meeting-status-indicator" class="text-center mb-6 p-3 rounded-lg shadow-inner font-semibold text-lg bg-gray-200 text-gray-600">
+                ⏳ Verificando status do servidor...
+            </div>
+
+            <div id="main-cards-view" class="view-section hidden">
+                <div class="flex justify-center mb-10">
+                    <div class="bg-white p-8 rounded-2xl shadow-lg border-b-4 border-brand-primary text-center max-w-4xl w-full flex items-center justify-center min-h-[320px]">
+                        <img id="comite-destaque-logo-header" src="" alt="Logo do Comitê" class="object-contain mx-auto">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <button class="menu-card-btn bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all border-t-4 border-brand-primary group text-left" data-target="registration-view" id="btn-registro">
+                        <div class="w-12 h-12 bg-brand-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <svg class="w-6 h-6 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-900 mb-2">Registrar Presença</h2>
+                        <p class="text-gray-500 text-sm">Assine a lista de presença da reunião atual.</p>
+                        <p id="registro-alert" class="hidden text-xs text-red-500 font-bold mt-2">Bloqueado: Nenhuma reunião ativa.</p>
+                    </button>
+
+                    <button class="menu-card-btn bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all border-t-4 border-brand-accent group text-left" data-target="quorum-view">
+                        <div class="w-12 h-12 bg-brand-accent/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <svg class="w-6 h-6 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-900 mb-2">Painel de Quórum</h2>
+                        <p class="text-gray-500 text-sm">Visualize o total de presentes em tempo real.</p>
+                    </button>
+
+                    <button class="menu-card-btn bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all border-t-4 border-brand-success group text-left" data-target="validation-view">
+                        <div class="w-12 h-12 bg-brand-success/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <svg class="w-6 h-6 text-brand-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-900 mb-2">Validar Código</h2>
+                        <p class="text-gray-500 text-sm">Verifique a autenticidade de um código.</p>
+                    </button>
+
+                    <button class="menu-card-btn bg-brand-dark text-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all border-t-4 border-gray-900 group text-left" data-target="admin-login">
+                        <div class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        </div>
+                        <h2 class="text-xl font-bold mb-2">Administração</h2>
+                        <p class="text-gray-300 text-sm">Acesso exclusivo do Secretário.</p>
+                    </button>
+                </div>
+            </div>
+
+            <div id="registration-view" class="view-section hidden max-w-2xl mx-auto">
+                <button class="menu-card-btn mb-4 flex items-center text-brand-primary hover:underline font-medium" data-target="main-cards-view">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg> Voltar
+                </button>
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-brand-primary p-6 text-white">
+                        <h2 class="text-2xl font-bold">Lista de Presença</h2>
+                        <p class="text-brand-light text-sm mt-1">Preencha os dados abaixo para confirmar sua participação.</p>
+                    </div>
+                    <form id="registration-form" class="p-6 space-y-5">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">Nome Completo</label>
+                            <input type="text" id="name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">CPF</label>
+                            <input type="text" id="cpf" required placeholder="000.000.000-00" maxlength="14" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">Instituição</label>
+                            <input type="text" id="institution" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary outline-none">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Setor</label>
+                                <select id="sector" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary outline-none bg-white">
+                                    <option value="" disabled selected>Selecione o setor...</option>
+                                    <option value="Poder Público">Poder Público</option>
+                                    <option value="Usuários de Água">Usuários de Água</option>
+                                    <option value="Sociedade Civil">Sociedade Civil</option>
+                                    <option value="Outros">Outros</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Representação</label>
+                                <select id="representation" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary outline-none bg-white">
+                                    <option value="" disabled selected>Selecione...</option>
+                                    <option value="Titular">Titular</option>
+                                    <option value="Suplente">Suplente</option>
+                                    <option value="Ouvinte">Ouvinte / Convidado</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-brand-success hover:bg-[#3ea893] text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-all transform hover:-translate-y-0.5 mt-4">
+                            Confirmar Presença
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="quorum-view" class="view-section hidden">
+                <button class="menu-card-btn mb-4 flex items-center text-brand-primary hover:underline font-medium" data-target="main-cards-view">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg> Voltar
+                </button>
+                
+                <div class="mb-8 bg-white rounded-2xl p-6 shadow-lg border-l-8 border-brand-accent flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Total de Presentes</h2>
+                        <p class="text-gray-500">Atualizado em tempo real</p>
+                    </div>
+                    <div class="text-5xl font-extrabold text-brand-primary" id="total-presentes">0</div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 text-center border-b pb-2">Distribuição por Setor</h3>
+                        <div class="relative h-64"><canvas id="sectorChart"></canvas></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 text-center border-b pb-2">Tipo de Representação</h3>
+                        <div class="relative h-64"><canvas id="representationChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="validation-view" class="view-section hidden max-w-lg mx-auto">
+                <button class="menu-card-btn mb-4 flex items-center text-brand-primary hover:underline font-medium" data-target="main-cards-view">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg> Voltar
+                </button>
+                <div class="bg-white rounded-2xl shadow-xl p-8 text-center border-t-4 border-brand-success">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Validar Presença</h2>
+                    <p class="text-gray-500 mb-6">Insira o código gerado no registro.</p>
+                    
+                    <form id="validation-form" class="space-y-4">
+                        <input type="text" id="validation-code-input" required placeholder="Ex: 123456" class="w-full text-center text-2xl tracking-widest px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-0 focus:border-brand-success outline-none font-mono font-bold">
+                        <button type="submit" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-3 px-4 rounded-xl shadow transition-colors">Verificar Código</button>
+                    </form>
+
+                    <div id="validation-result" class="hidden mt-6 text-left leading-relaxed text-gray-700"></div>
+                </div>
+            </div>
+
+            <div id="admin-login" class="view-section hidden max-w-sm mx-auto mt-10">
+                <button class="menu-card-btn mb-4 flex items-center text-brand-primary hover:underline font-medium" data-target="main-cards-view">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg> Voltar
+                </button>
+                <div class="bg-white p-8 rounded-2xl shadow-xl border-t-4 border-brand-dark">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2 text-center">Acesso Restrito</h2>
+                    <p class="text-center text-sm text-gray-500 mb-6">Insira a senha do secretário para acessar o <span id="login-comite-nome" class="font-bold"></span>.</p>
+                    
+                    <form id="admin-login-form" class="space-y-4">
+                        <div>
+                            <input type="password" id="admin-password" placeholder="Senha do Comitê" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-dark outline-none">
+                        </div>
+                        <p id="admin-login-error" class="text-red-500 text-sm font-semibold text-center"></p>
+                        <button type="submit" class="w-full bg-brand-dark hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors">Entrar</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="admin-dashboard" class="view-section hidden">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-900">Painel do Secretário</h2>
+                        <p class="text-brand-primary font-bold mt-1 text-lg" id="admin-comite-title">CBH</p>
+                    </div>
+                    <button class="menu-card-btn mt-4 md:mt-0 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-medium transition-colors" data-target="main-cards-view">
+                        Sair do Painel
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-2xl shadow flex flex-col justify-between border border-gray-100">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">Status da Reunião</h3>
+                            <div id="admin-meeting-status" class="mb-4 p-3 rounded-lg font-semibold bg-gray-100 text-gray-600">Verificando...</div>
+                        </div>
+                        <div class="space-y-2">
+                            <button id="start-meeting" class="w-full bg-brand-success hover:bg-[#3ea893] text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">Nova Reunião (Abrir Presença)</button>
+                            <button id="end-meeting" class="w-full bg-brand-accent hover:bg-[#d6af59] text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">Finalizar Reunião Atual</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow flex flex-col justify-between border border-brand-light">
+                        <div>
+                            <h3 class="text-lg font-bold text-brand-primary mb-4">Histórico e Atas</h3>
+                            <select id="admin-meeting-select" class="w-full mb-4 px-3 py-2 border border-gray-300 rounded-lg outline-none bg-white text-sm font-medium">
+                                <option value="">Carregando histórico...</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <button id="view-history-on-screen" class="w-full border-2 border-brand-success text-brand-success hover:bg-brand-success hover:text-white font-bold py-2 px-4 rounded-lg transition-colors">👁️ Visualizar na Tabela</button>
+                            <button id="download-pdf" class="w-full border-2 border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white font-bold py-2 px-4 rounded-lg transition-colors">Baixar Ata (PDF)</button>
+                            <button id="download-csv" class="w-full border-2 border-brand-light text-brand-primary hover:bg-brand-light hover:text-white font-bold py-2 px-4 rounded-lg transition-colors">Baixar Excel (CSV)</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-red-50 p-6 rounded-2xl shadow flex flex-col justify-between border border-red-100">
+                        <div>
+                            <h3 class="text-lg font-bold text-red-800 mb-4">Zona de Perigo</h3>
+                            <p class="text-sm text-red-700 mb-4">Ações aqui afetam apenas a reunião <strong>ATIVA</strong>.</p>
+                        </div>
+                        <button id="reset-quorum-today" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Apagar Presenças Atuais</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow overflow-hidden border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <h3 class="text-lg font-bold text-gray-800" id="admin-table-title">Registros da Reunião Ativa</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-600">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                                <tr>
+                                    <th class="px-6 py-3">ID</th><th class="px-6 py-3">Nome</th><th class="px-6 py-3">CPF</th>
+                                    <th class="px-6 py-3">Setor</th><th class="px-6 py-3">Representação</th><th class="px-6 py-3">Código</th>
+                                    <th class="px-6 py-3 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-table-body" class="divide-y divide-gray-200"></tbody>
+                        </table>
+                        <div id="admin-loading-message" class="text-center py-8 text-gray-500 font-medium">Nenhum registro.</div>
+                    </div>
+                </div>
+            </div>
+            
+        </div> </main>
+
+    <script>
+        // --- 1. CONFIGURAÇÕES BASE ---
+        const API_URL = 'https://api-comites-to.onrender.com';
+        
+        // Os 7 Comitês do Tocantins
+        const COMITES = [
+            { sigla: "CBHRCC", nome: "Rios Coco e Caiapó", cor: "bg-blue-600", logoHeader: "imagens/logo_cbhrcc.png" },
+            { sigla: "CBHLP", nome: "Lago de Palmas", cor: "bg-cyan-600", logoHeader: "imagens/logo_cbhlp.png" },
+            { sigla: "CBHSAST", nome: "Rios Santa Tereza e Santo Antônio", cor: "bg-teal-600", logoHeader: "imagens/logo_cbhsast.png" },
+            { sigla: "CBHLC", nome: "Rios Lontra e Corda", cor: "bg-emerald-600", logoHeader: "imagens/logo_cbhlc.png" },
+            { sigla: "CBHF", nome: "Rio Formoso", cor: "bg-green-600", logoHeader: "imagens/logo_cbhf.png" },
+            { sigla: "CBHMA", nome: "Rio Manuel Alves", cor: "bg-sky-600", logoHeader: "imagens/logo_cbhma.png" },
+            { sigla: "CBHRP", nome: "Rio Palma", cor: "bg-indigo-600", logoHeader: "imagens/logo_cbhrp.png" }
+        ];
+
+        // Estado Global
+        let currentComite = null;
+        let currentComiteNome = null;
+        let registrationsData = [];
+        let meetingState = { isActive: false, meetingId: null, meetingDate: null, meetingName: "Nenhuma Reunião" };
+        let pollingInterval = null;
+
+        // --- 2. INICIALIZAÇÃO DA LANDING PAGE ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.getElementById('comites-grid');
+            COMITES.forEach(c => {
+                const btn = document.createElement('button');
+                btn.className = `comite-banner ${c.cor} text-white p-6 rounded-2xl shadow-lg w-full relative overflow-hidden flex flex-col justify-center items-center text-center h-40`;
+                
+                // Aplicado o novo ícone SVG de gota de água em todos
+                btn.innerHTML = `
+                    <div class="relative z-10 flex flex-col items-center">
+                        <h3 class="text-3xl font-black mb-2">${c.sigla}</h3>
+                        <p class="text-sm font-medium opacity-100 leading-tight px-2">${c.nome}</p>
+                    </div>
+                    <div class="absolute -right-4 -bottom-4 opacity-10">
+                        <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8z"/></svg>
+                    </div>
+                `;
+                btn.onclick = () => entrarNoComite(c.sigla, c.nome);
+                grid.appendChild(btn);
+            });
+        });
+
+        // --- 3. LÓGICA DE MUDANÇA DE CONTEXTO ---
+        function entrarNoComite(sigla, nome) {
+            currentComite = sigla;
+            currentComiteNome = nome;
+            
+            const comiteData = COMITES.find(c => c.sigla === sigla);
+            
+            document.getElementById('header-title').textContent = sigla;
+            document.getElementById('header-subtitle').textContent = nome;
+            document.getElementById('login-comite-nome').textContent = sigla;
+            document.getElementById('admin-comite-title').textContent = `${sigla} - ${nome}`;
+            
+            const headerLogo = document.getElementById('comite-destaque-logo-header');
+            
+            headerLogo.src = comiteData.logoHeader;
+            
+            headerLogo.onerror = function() {
+                this.onerror = null; 
+                this.src = `https://placehold.co/800x320/176781/FFFFFF?text=Logo+${sigla}`;
+            };
+            
+            document.getElementById('btn-voltar-home').classList.remove('hidden');
+            document.getElementById('landing-view').classList.add('hidden');
+            document.getElementById('sistema-interno').classList.remove('hidden');
+            switchView('main-cards-view');
+
+            fetchMeetingState();
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(fetchMeetingState, 5000);
+        }
+
+        document.getElementById('btn-voltar-home').addEventListener('click', () => {
+            if (pollingInterval) clearInterval(pollingInterval);
+            currentComite = null;
+            document.getElementById('header-title').textContent = "Fórum Tocantinense de Comitês de Bacia";
+            document.getElementById('header-subtitle').textContent = "Sistema de Gestão de Reuniões On-line";
+            document.getElementById('btn-voltar-home').classList.add('hidden');
+            document.getElementById('sistema-interno').classList.add('hidden');
+            document.getElementById('landing-view').classList.remove('hidden');
+        });
+
+        // --- 4. UTILITÁRIOS ---
+        function showStatusMessage(message, isError = false) {
+            const statusEl = document.getElementById('status-message');
+            statusEl.textContent = message;
+            statusEl.className = `fixed top-4 right-4 p-4 rounded-xl shadow-2xl font-medium transition-all duration-300 z-50 opacity-100 text-white ${isError ? 'bg-red-600' : 'bg-brand-success'}`;
+            setTimeout(() => { statusEl.classList.remove('opacity-100'); statusEl.classList.add('opacity-0', 'pointer-events-none'); }, 4000);
+        }
+
+        function getTodayDate() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; }
+        function formatDateToBR(d) { if(!d) return '--'; const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
+
+        function openConfirmationModal(message) {
+            return new Promise((resolve) => {
+                document.getElementById('modal-text').textContent = message;
+                document.getElementById('confirmation-modal').classList.remove('hidden');
+                setTimeout(() => document.getElementById('modal-content').classList.replace('scale-95', 'scale-100').replace('opacity-0', 'opacity-100'), 10);
+                const close = () => { document.getElementById('modal-content').classList.replace('scale-100', 'scale-95').replace('opacity-100', 'opacity-0'); setTimeout(() => document.getElementById('confirmation-modal').classList.add('hidden'), 300); };
+                document.getElementById('modal-confirm').onclick = () => { close(); resolve(true); };
+                document.getElementById('modal-cancel').onclick = () => { close(); resolve(false); };
+            });
+        }
+
+        function switchView(targetId) {
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById(targetId).classList.remove('hidden');
+            if (targetId === 'admin-dashboard') setupAdminDashboard();
+        }
+
+        document.addEventListener('click', (e) => {
+            const card = e.target.closest('.menu-card-btn');
+            if (card) switchView(card.dataset.target === 'admin-login' && !document.getElementById('admin-dashboard').classList.contains('hidden') ? 'admin-dashboard' : card.dataset.target);
+        });
+
+        // --- 5. COMUNICAÇÃO API ---
+        async function fetchMeetingState() {
+            if(!currentComite) return;
+            try {
+                const response = await fetch(`${API_URL}/reunioes/ativa/${currentComite}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    meetingState = { isActive: true, meetingId: data.id, meetingDate: data.data_reuniao, meetingName: data.titulo };
+                    fetchQuorum(); 
+                } else {
+                    meetingState = { isActive: false, meetingId: null, meetingDate: null, meetingName: "Nenhuma Reunião" };
+                    registrationsData = []; updateQuorumCharts(registrationsData);
+                }
+                updateUIOnMeetingStateChange();
+            } catch (error) { console.log("Servidor offline."); }
+        }
+
+        async function fetchQuorum() {
+            if (!meetingState.isActive) return;
+            try {
+                const response = await fetch(`${API_URL}/presencas/reuniao/${meetingState.meetingId}`);
+                if (response.ok) {
+                    registrationsData = await response.json();
+                    updateQuorumCharts(registrationsData);
+                    
+                    // Atualiza a tabela com permissão de exclusão (porque a reunião está ativa)
+                    if (!document.getElementById('admin-dashboard').classList.contains('hidden')) {
+                        document.getElementById('admin-table-title').innerHTML = 'Registros da Reunião Ativa <span class="text-brand-success text-sm ml-2">●</span>';
+                        renderAdminTable(registrationsData, true);
+                    }
+                }
+            } catch (error) { console.error("Erro ao carregar quórum."); }
+        }
+
+        function updateUIOnMeetingStateChange() {
+            const indicatorEl = document.getElementById('meeting-status-indicator');
+            const registroBtn = document.getElementById('btn-registro');
+            if (meetingState.isActive) {
+                indicatorEl.className = 'text-center mb-6 p-3 rounded-lg shadow-inner font-semibold text-lg bg-brand-success/20 text-brand-primary border border-brand-success/50';
+                indicatorEl.innerHTML = `✅ REUNIÃO ATIVA: <span class="font-extrabold">${meetingState.meetingName}</span>`;
+                registroBtn.disabled = false; registroBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                document.getElementById('registro-alert').classList.add('hidden');
+            } else {
+                indicatorEl.className = 'text-center mb-6 p-3 rounded-lg shadow-inner font-semibold text-lg bg-gray-200 text-gray-700 border border-gray-300';
+                indicatorEl.innerHTML = `ℹ️ Reunião Fechada no momento.`;
+                registroBtn.disabled = true; registroBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                document.getElementById('registro-alert').classList.remove('hidden');
+            }
+        }
+
+        // --- 6. REGISTRO ---
+        document.getElementById('cpf').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, ''); 
+            if (value.length > 11) value = value.slice(0, 11);
+            value = value.replace(/(\d{3})(\d)/, '$1.$2'); value = value.replace(/(\d{3})(\d)/, '$1.$2'); value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            e.target.value = value;
+        });
+
+        document.getElementById('registration-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!meetingState.isActive) return showStatusMessage("Reunião fechada.", true);
+
+            const cpfLimpo = document.getElementById('cpf').value.replace(/\D/g, '');
+            if (cpfLimpo.length !== 11) return showStatusMessage("CPF inválido.", true);
+
+            const payload = {
+                comite: currentComite,
+                nome: document.getElementById('name').value.trim(),
+                cpf: cpfLimpo, 
+                instituicao: document.getElementById('institution').value.trim(),
+                setor: document.getElementById('sector').value,
+                representacao: document.getElementById('representation').value,
+                reuniao_id: meetingState.meetingId,
+                codigo_validacao: Math.floor(100000 + Math.random() * 900000).toString()
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/presencas/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (response.ok) {
+                    showStatusMessage(`Sucesso! Código gerado: ${payload.codigo_validacao}`);
+                    document.getElementById('registration-form').reset(); 
+                    switchView('main-cards-view'); fetchQuorum();
+                } else {
+                    const error = await response.json(); 
+                    showStatusMessage(error.detail.includes("já registado") ? "⚠️ CPF já confirmou presença!" : `Erro: ${error.detail}`, true);
+                }
+            } catch (error) { showStatusMessage('Erro de conexão.', true); }
+        });
+
+        // --- 7. GRÁFICOS ---
+        let sectorChart = null, representationChart = null;
+        function updateQuorumCharts(data) {
+            document.getElementById('total-presentes').textContent = data.length;
+            const sectorCounts = data.reduce((acc, curr) => { acc[curr.setor] = (acc[curr.setor] || 0) + 1; return acc; }, {});
+            const repCounts = data.reduce((acc, curr) => { acc[curr.representacao] = (acc[curr.representacao] || 0) + 1; return acc; }, {});
+            const colors = ['#176781', '#eac066', '#50c2ab', '#7fb2c7', '#67686a'];
+
+            if (sectorChart) sectorChart.destroy();
+            sectorChart = new Chart(document.getElementById('sectorChart').getContext('2d'), { type: 'pie', data: { labels: Object.keys(sectorCounts), datasets: [{ data: Object.values(sectorCounts), backgroundColor: colors }] } });
+            if (representationChart) representationChart.destroy();
+            representationChart = new Chart(document.getElementById('representationChart').getContext('2d'), { type: 'doughnut', data: { labels: Object.keys(repCounts), datasets: [{ data: Object.values(repCounts), backgroundColor: colors }] } });
+        }
+
+        // --- 8. ADMINISTRAÇÃO E LÓGICA DE EXCLUSÃO ---
+        document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const senhaDigitada = document.getElementById('admin-password').value;
+            const errorEl = document.getElementById('admin-login-error');
+
+            try {
+                const response = await fetch(`${API_URL}/admin/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: senhaDigitada }) });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.comite === currentComite || data.comite === "TODOS") {
+                        errorEl.textContent = ""; document.getElementById('admin-password').value = "";
+                        switchView('admin-dashboard');
+                    } else {
+                        errorEl.textContent = `Acesso negado. Esta senha não pertence ao ${currentComite}.`;
+                    }
+                } else { errorEl.textContent = "Senha incorreta."; }
+            } catch (error) { errorEl.textContent = "Erro de conexão."; }
+        });
+
+        async function populateMeetingHistory() {
+            const select = document.getElementById('admin-meeting-select');
+            try {
+                const response = await fetch(`${API_URL}/reunioes/${currentComite}`);
+                if (response.ok) {
+                    const allMeetings = await response.json();
+                    select.innerHTML = '';
+                    if (allMeetings.length === 0) { select.innerHTML = '<option value="">Nenhuma reunião encontrada</option>'; return; }
+                    allMeetings.forEach(m => {
+                        const option = document.createElement('option'); option.value = m.id;
+                        option.textContent = `${formatDateToBR(m.data_reuniao)} - ${m.titulo} ${m.ativa ? '[🟢]' : '[🔴]'}`;
+                        if (meetingState.isActive && m.id === meetingState.meetingId) option.selected = true;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (e) { console.error("Erro histórico"); }
+        }
+
+        function setupAdminDashboard() {
+            const statusEl = document.getElementById('admin-meeting-status');
+            if (meetingState.isActive) {
+                statusEl.className = 'mb-4 p-3 rounded-lg font-semibold bg-brand-success/20 text-brand-primary'; statusEl.innerHTML = `✅ REUNIÃO ATIVA: ${meetingState.meetingName}`;
+                document.getElementById('start-meeting').disabled = true; document.getElementById('end-meeting').disabled = false; document.getElementById('reset-quorum-today').disabled = false;
+                
+                document.getElementById('admin-table-title').innerHTML = 'Registros da Reunião Ativa <span class="text-brand-success text-sm ml-2">●</span>';
+                renderAdminTable(registrationsData, true); // true = Permite excluir
+            } else {
+                statusEl.className = 'mb-4 p-3 rounded-lg font-semibold bg-red-100 text-red-700'; statusEl.innerHTML = `❌ NENHUMA ATIVA.`;
+                document.getElementById('start-meeting').disabled = false; document.getElementById('end-meeting').disabled = true; document.getElementById('reset-quorum-today').disabled = true;
+                
+                document.getElementById('admin-table-title').textContent = 'Nenhuma Reunião Ativa';
+                renderAdminTable([], false);
+            }
+            populateMeetingHistory(); 
+        }
+
+        document.getElementById('start-meeting').addEventListener('click', async () => {
+            const name = prompt(`Nome da Nova Reunião do ${currentComite}:`) || `Reunião ${formatDateToBR(getTodayDate())}`;
+            try {
+                if ((await fetch(`${API_URL}/reunioes/`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ comite: currentComite, titulo: name, data_reuniao: getTodayDate() }) })).ok) {
+                    showStatusMessage("Reunião iniciada!"); fetchMeetingState(); setTimeout(populateMeetingHistory, 500);
+                }
+            } catch (e) { showStatusMessage("Erro.", true); }
+        });
+
+        document.getElementById('end-meeting').addEventListener('click', async () => {
+            if ((await fetch(`${API_URL}/reunioes/${meetingState.meetingId}/finalizar`, { method: 'PUT' })).ok) { showStatusMessage("Finalizada."); fetchMeetingState(); setTimeout(populateMeetingHistory, 500); }
+        });
+
+        document.getElementById('reset-quorum-today').addEventListener('click', async () => {
+            if (await openConfirmationModal(`Apagar os ${registrationsData.length} registros atuais do ${currentComite}?`)) {
+                if ((await fetch(`${API_URL}/presencas/reuniao/${meetingState.meetingId}`, { method: 'DELETE' })).ok) { showStatusMessage("Quórum apagado."); fetchQuorum(); }
+            }
+        });
+
+        // Função para apagar apenas 1 registo (Chamada pelo botão na tabela)
+        async function deleteRegistration(id) {
+            if (await openConfirmationModal(`Deseja realmente excluir este registro?`)) {
+                try {
+                    const response = await fetch(`${API_URL}/presencas/${id}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        showStatusMessage("Registro excluído com sucesso.");
+                        // Atualiza os dados da reunião ativa
+                        fetchQuorum();
+                    } else {
+                        showStatusMessage("Erro ao excluir.", true);
+                    }
+                } catch(e) { 
+                    showStatusMessage("Erro de conexão.", true); 
+                }
+            }
+        }
+
+        // Função de renderizar tabela agora aceita o parâmetro "allowDelete"
+        function renderAdminTable(data, allowDelete = true) {
+            const tbody = document.getElementById('admin-table-body'); tbody.innerHTML = '';
+            document.getElementById('admin-loading-message').classList.toggle('hidden', data.length > 0);
+            
+            data.sort((a, b) => new Date(b.registado_em) - new Date(a.registado_em)).forEach(reg => {
+                const row = tbody.insertRow();
+                let cpfFormatado = reg.cpf; if (cpfFormatado.length === 11) cpfFormatado = cpfFormatado.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+                
+                [String(reg.id).padStart(4,'0'), reg.nome, cpfFormatado, reg.setor, reg.representacao, reg.codigo_validacao].forEach(text => row.insertCell().textContent = text);
+                
+                // Célula de Ações
+                const actionCell = row.insertCell();
+                actionCell.className = "text-center";
+                if (allowDelete) {
+                    actionCell.innerHTML = `<button onclick="deleteRegistration(${reg.id})" class="text-red-600 hover:text-red-800 font-bold px-2 py-1 rounded hover:bg-red-50 transition-colors text-xs border border-transparent hover:border-red-200">Excluir</button>`;
+                } else {
+                    actionCell.innerHTML = `<span class="text-gray-400 text-xs">Apenas Leitura</span>`;
+                }
+            });
+        }
+
+        // VISUALIZAR HISTÓRICO NA TELA
+        document.getElementById('view-history-on-screen').addEventListener('click', async () => {
+            const select = document.getElementById('admin-meeting-select');
+            const meetingId = select.value;
+            
+            if (!meetingId) return showStatusMessage("Selecione uma reunião no Histórico.", true);
+            
+            const optionText = select.options[select.selectedIndex].text;
+            const data = await fetchHistoryData(meetingId);
+            
+            if (!data) return showStatusMessage("Erro ao carregar dados.", true);
+            
+            document.getElementById('admin-table-title').innerHTML = `Visualizando Histórico: <span class="font-normal text-brand-primary">${optionText}</span>`;
+            
+            // Renderiza passando "false" para proteger os dados antigos de serem apagados sem querer
+            renderAdminTable(data, false);
+            
+            // Rola a página suavemente para a tabela
+            document.getElementById('admin-table-title').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // --- 9. VALIDAÇÃO ATUALIZADA (BUSCA OS DADOS DA REUNIÃO) ---
+        document.getElementById('validation-form').addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+            const code = document.getElementById('validation-code-input').value.trim(); 
+            const resEl = document.getElementById('validation-result');
+            try {
+                const res = await fetch(`${API_URL}/presencas/validar/${code}`);
+                if (!res.ok) { 
+                    resEl.className = 'mt-6 p-6 rounded-xl bg-red-100 text-red-800 border-l-4 border-red-500'; 
+                    resEl.innerHTML = `❌ <strong>CÓDIGO INVÁLIDO</strong>`; 
+                } 
+                else {
+                    const d = await res.json();
+                    
+                    // Lógica Nova: Busca a lista de reuniões para pegar o Título e a Data desta presença
+                    let tituloReuniao = "Reunião Desconhecida";
+                    let dataReuniao = "--/--/----";
+                    try {
+                        const resReunioes = await fetch(`${API_URL}/reunioes/${d.comite}`);
+                        if (resReunioes.ok) {
+                            const reunioes = await resReunioes.json();
+                            // Filtra para encontrar a reunião exata que este código pertence
+                            const reuniao = reunioes.find(r => r.id === d.reuniao_id);
+                            if (reuniao) {
+                                tituloReuniao = reuniao.titulo;
+                                dataReuniao = formatDateToBR(reuniao.data_reuniao);
+                            }
+                        }
+                    } catch(err) { 
+                        console.error("Não foi possível buscar os dados da reunião"); 
+                    }
+
+                    let cpfMask = d.cpf; 
+                    if (cpfMask.length === 11) cpfMask = `${cpfMask.substring(0, 3)}.***.***-${cpfMask.substring(9, 11)}`;
+                    
+                    resEl.className = 'mt-6 p-6 rounded-xl bg-brand-success/20 text-brand-primary border-l-4 border-brand-success';
+                    resEl.innerHTML = `✅ <strong>PRESENÇA CONFIRMADA!</strong><br><br>
+                    <strong>Comitê:</strong> ${d.comite}<br>
+                    <strong>Reunião:</strong> ${tituloReuniao}<br>
+                    <strong>Data:</strong> ${dataReuniao}<br>
+                    <strong>Nome:</strong> ${d.nome}<br>
+                    <strong>CPF:</strong> ${cpfMask}<br>
+                    <strong>Setor:</strong> ${d.setor} (${d.representacao})`;
+                }
+                resEl.classList.remove('hidden');
+            } catch (e) { showStatusMessage("Erro.", true); }
+        });
+
+        // --- 10. EXPORTAÇÃO ---
+        async function fetchHistoryData(meetingId) {
+            try { const response = await fetch(`${API_URL}/presencas/reuniao/${meetingId}`); if (response.ok) return await response.json(); } catch (e) {} return null;
+        }
+
+        document.getElementById('download-csv').addEventListener('click', async () => {
+            const meetingId = document.getElementById('admin-meeting-select').value; if (!meetingId) return showStatusMessage("Selecione uma reunião.", true);
+            const data = await fetchHistoryData(meetingId); if (!data || !data.length) return showStatusMessage("Sem registros.", true);
+            const csv = "ID,Comite,Nome,Instituicao,Setor,Representacao,Codigo\n" + data.map(r => `${r.id},${r.comite},"${r.nome}","${r.instituicao}","${r.setor}","${r.representacao}",${r.codigo_validacao}`).join('\n');
+            const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = `ata_${currentComite}.csv`; link.click();
+        });
+
+        document.getElementById('download-pdf').addEventListener('click', async () => {
+            const select = document.getElementById('admin-meeting-select'); 
+            const meetingId = select.value; 
+            
+            if (!meetingId) return showStatusMessage("Selecione uma reunião.", true);
+            
+            const optionText = select.options[select.selectedIndex].text.split(' [')[0];
+            const datePart = optionText.split(' - ')[0]; 
+            const titlePart = optionText.split(' - ').slice(1).join(' - '); 
+            
+            const data = await fetchHistoryData(meetingId); 
+            if (!data || !data.length) return showStatusMessage("Sem registros.", true);
+            
+            const doc = new jspdf.jsPDF(); 
+            
+            const nomesComitesPdf = {
+                "CBHRCC": "CBHRCC - Comitê de Bacia Hidrográfica dos rios Coco e Caiapó",
+                "CBHLP": "CBHLP - Comitê de Bacia Hidrográfica do Lago de Palmas",
+                "CBHSAST": "CBHSAST - Comitê de Bacia Hidrográfica dos rios Santa Tereza e Santo Antônio",
+                "CBHLC": "CBHLC - Comitê de Bacia Hidrográfica dos rios Lontra e Corda",
+                "CBHF": "CBHF - Comitê de Bacia Hidrográfica do rio Formoso",
+                "CBHMA": "CBHMA - Comitê de Bacia Hidrográfica do rio Manuel Alves",
+                "CBHRP": "CBHRP - Comitê de Bacia Hidrográfica do rio Palma"
+            };
+
+            const nomeCompleto = nomesComitesPdf[currentComite] || currentComite;
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const centerX = pageWidth / 2;
+
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            
+            const splitNome = doc.splitTextToSize(nomeCompleto, 180); 
+            doc.text(splitNome, centerX, 20, { align: "center" });
+
+            let yStartLines = 20 + (splitNome.length * 7);
+
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            
+            doc.text(titlePart, centerX, yStartLines, { align: "center" });
+            doc.text(`Data: ${datePart}`, centerX, yStartLines + 7, { align: "center" });
+            
+            doc.autoTable({ 
+                startY: yStartLines + 15, 
+                head: [["Nome", "Instituição", "Setor", "Representação", "Código"]], 
+                body: data.sort((a,b)=>a.nome.localeCompare(b.nome)).map(r => [r.nome, r.instituicao, r.setor, r.representacao, r.codigo_validacao]) 
+            });
+            
+            doc.save(`ata_${currentComite}.pdf`);
+        });
+    </script>
+</body>
+</html>
